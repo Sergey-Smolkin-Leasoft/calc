@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Калькулятор расхода топлива</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .calculator {
+            background-color: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #34495e;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        .settings {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid #eee;
+        }
+        .settings h2 {
+            margin-top: 0;
+            color: #2c3e50;
+            font-size: 18px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f4fc;
+            border-radius: 8px;
+            border-left: 5px solid #3498db;
+        }
+        .result h2 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .result-value {
+            font-weight: bold;
+            font-size: 24px;
+            color: #2c3e50;
+        }
+        .detail {
+            margin-top: 5px;
+            color: #7f8c8d;
+        }
+        .formulas {
+            background-color: #f0f7fb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            border-left: 5px solid #2980b9;
+        }
+        .formula {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 16px;
+            font-weight: bold;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 5px;
+            margin: 10px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .calculation {
+            background-color: #fff8e1;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            border-left: 5px solid #f39c12;
+        }
+        .formula-result {
+            font-weight: bold;
+            color: #e74c3c;
+        }
+        .equation-display {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+            font-size: 18px;
+        }
+        .equation-display span {
+            padding: 0 5px;
+        }
+        .equation-result {
+            font-weight: bold;
+            padding: 5px 10px;
+            background-color: #e8f4fc;
+            border-radius: 5px;
+            margin-left: 10px;
+            color: #2c3e50;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+    </style>
+    <style>
+        /* Стили для модального окна */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 8px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: black;
+        }
+        .modal-header {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .modal-body {
+            padding: 15px;
+        }
+        .modal-footer {
+            padding: 10px;
+            border-top: 1px solid #ddd;
+            text-align: right;
+        }
+    </style>
+    <style>
+        /* Стили для модального окна */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 8px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: black;
+        }
+        .modal-header {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .modal-body {
+            padding: 15px;
+        }
+        .modal-footer {
+            padding: 10px;
+            border-top: 1px solid #ddd;
+            text-align: right;
+        }
+
+        /* Стили для выпадающего списка и кнопки добавления автомобиля */
+        .input-group > div {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .input-group select {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+            background-color: white;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .input-group select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+        }
+        .input-group select option {
+            padding: 10px;
+            background-color: white;
+        }
+        .input-group select option:hover {
+            background-color: #f5f5f5;
+        }
+        .input-group button {
+            width: 150px;
+            padding: 5px 10px;
+            font-size: 14px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .input-group button:hover {
+            background-color: #2980b9;
+        }
+    </style>
+    <style>
+        /* Стили для модального окна */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 8px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: black;
+        }
+        .modal-header {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .modal-body {
+            padding: 15px;
+        }
+        .modal-footer {
+            padding: 10px;
+            border-top: 1px solid #ddd;
+            text-align: right;
+        }
+
+        /* Стили для выпадающего списка и кнопки добавления автомобиля */
+        .input-group > div {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .input-group select {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+            background-color: white;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .input-group select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+        }
+        .input-group select option {
+            padding: 10px;
+            background-color: white;
+        }
+        .input-group select option:hover {
+            background-color: #f5f5f5;
+        }
+        .input-group button {
+            width: 120px;
+            padding: 5px 10px;
+            font-size: 14px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .input-group button:hover {
+            background-color: #2980b9;
+        }
+
+        /* Стили для модального окна редактирования */
+        .edit-modal {
+            display: none;
+            position: fixed;
+            z-index: 2;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .edit-modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 8px;
+        }
+    </style>
+    <style>
+        /* Стили для модального окна деталей автомобиля */
+        .vehicle-details-modal {
+            display: none;
+            position: fixed;
+            z-index: 2;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .vehicle-details-modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 800px;
+            border-radius: 8px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .vehicle-details-modal-header {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .vehicle-details-modal-header h3 {
+            margin: 0;
+        }
+        .vehicle-details-modal-body {
+            padding: 15px;
+        }
+        .vehicle-details-modal-footer {
+            padding: 10px;
+            border-top: 1px solid #ddd;
+            text-align: right;
+        }
+        .vehicle-details-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .vehicle-details-table th,
+        .vehicle-details-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .vehicle-details-table th {
+            background-color: #3498db;
+            color: white;
+        }
+        .vehicle-details-table tr:hover {
+            background-color: #f5f5f5;
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <h1>Калькулятор расхода топлива</h1>
+        
+        <div class="formulas">
+            <h2>Используемые формулы:</h2>
+            <div class="formula">1. Расход на пробег = Пробег (км) × Расход на 100 км ÷ 100</div>
+            <div class="formula">2. Расход на работу двигателя = Время работы (ч) × Расход за 1 час</div>
+            <div class="formula">3. Общий расход = Расход на пробег + Расход на работу двигателя</div>
+        </div>
+        
+        <div class="settings">
+            <h2>Настройки расчета</h2>
+            <div class="input-group">
+                <label for="vehicleSelect">Выберите автомобиль:</label>
+                <div style="display: flex; gap: 10px;">
+                    <select id="vehicleSelect" onchange="updateVehicleSettings()" style="flex: 1;">
+                        <option value="">Выберите автомобиль...</option>
+                    </select>
+                    <div style="display: flex; gap: 5px; align-items: center;">
+                        <button onclick="openAddVehicleModal()" style="width: 120px; padding: 5px 10px; font-size: 14px;">Добавить</button>
+                        <button onclick="openEditVehicleModal()" style="width: 120px; padding: 5px 10px; font-size: 14px;">Редактировать</button>
+                    </div>
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="fuelConsumption">Расход топлива на 100 км (л):</label>
+                <input type="number" id="fuelConsumption" value="8" min="0" step="0.1">
+            </div>
+            <div class="input-group">
+                <label for="idleConsumption">Расход топлива при работе двигателя (л/час):</label>
+                <input type="number" id="idleConsumption" value="1.5" min="0" step="0.1">
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label for="distance">Пробег (км):</label>
+            <input type="number" id="distance" placeholder="Введите пройденное расстояние" min="0">
+        </div>
+        
+        <div class="input-group">
+            <label for="engineTime">Время работы двигателя (часов):</label>
+            <input type="number" id="engineTime" placeholder="Введите время работы двигателя" min="0">
+        </div>
+        
+        <button onclick="calculateFuel()">Рассчитать расход топлива</button>
+        
+        <div class="result" id="result" style="display: none;">
+            <h2>Результат расчета:</h2>
+            
+            <div class="calculation" id="calculationDisplay">
+                <h3>Подробный расчет:</h3>
+                <div class="equation-display">
+                    <div>Расход на пробег = </div>
+                    <div id="distanceEquation"></div>
+                    <div class="equation-result" id="distanceConsumption">0</div>
+                    <div> л</div>
+                </div>
+                
+                <div class="equation-display">
+                    <div>Расход на работу двигателя = </div>
+                    <div id="engineEquation"></div>
+                    <div class="equation-result" id="engineConsumption">0</div>
+                    <div> л</div>
+                </div>
+                
+                <div class="equation-display">
+                    <div>Общий расход = </div>
+                    <div id="totalEquation"></div>
+                    <div class="equation-result" id="totalConsumption">0</div>
+                    <div> л</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="history" id="historySection" style="display: none; margin-top: 30px;">
+            <h2>История расчетов</h2>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Автомобиль</th>
+                            <th>Пробег (км)</th>
+                            <th>Время (ч)</th>
+                            <th>Расход/100км</th>
+                            <th>Расход/час</th>
+                            <th>Формула расчета</th>
+                            <th>Общий расход</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                        <!-- История расчетов будет добавлена здесь -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="vehicle-summary" id="vehicleSummary" style="margin-top: 30px;">
+                <h2>Сводка по автомобилям</h2>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Автомобиль</th>
+                                <th>Количество поездок</th>
+                                <th>Общий пробег (км)</th>
+                                <th>Общее время работы (ч)</th>
+                                <th>Общий расход топлива (л)</th>
+                                <th>Детали</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vehicleSummaryBody">
+                            <!-- Сводка по автомобилям будет добавлена здесь -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <button onclick="clearHistory()" style="margin-top: 15px; background-color: #e74c3c;">Очистить историю</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно для добавления автомобиля -->
+    <div id="addVehicleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close" onclick="closeModal()">&times;</span>
+                <h2>Добавление нового автомобиля</h2>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="vehicleName">Название автомобиля:</label>
+                    <input type="text" id="vehicleName" required>
+                </div>
+                <div class="input-group">
+                    <label for="vehicleFuel">Расход топлива на 100 км (л):</label>
+                    <input type="number" id="vehicleFuel" required min="0" step="0.1">
+                </div>
+                <div class="input-group">
+                    <label for="vehicleIdle">Расход топлива при работе двигателя (л/час):</label>
+                    <input type="number" id="vehicleIdle" required min="0" step="0.1">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="addVehicle(document.getElementById('vehicleName').value, 
+                    document.getElementById('vehicleFuel').value, 
+                    document.getElementById('vehicleIdle').value)">
+                    Добавить
+                </button>
+                <button onclick="closeEditModal()">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для редактирования автомобиля -->
+    <div id="editVehicleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close" onclick="closeModal()">&times;</span>
+                <h2>Редактирование автомобиля</h2>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="editVehicleName">Название автомобиля:</label>
+                    <input type="text" id="editVehicleName" required>
+                </div>
+                <div class="input-group">
+                    <label for="editVehicleFuel">Расход топлива на 100 км (л):</label>
+                    <input type="number" id="editVehicleFuel" required min="0" step="0.1">
+                </div>
+                <div class="input-group">
+                    <label for="editVehicleIdle">Расход топлива при работе двигателя (л/час):</label>
+                    <input type="number" id="editVehicleIdle" required min="0" step="0.1">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="saveEditedVehicle()">Сохранить</button>
+                <button onclick="closeEditModal()">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Загружаем историю при запуске страницы
+        let calculationHistory = JSON.parse(localStorage.getItem('fuelCalculations')) || [];
+        
+
+
+        // Загружаем настройки автомобилей из localStorage при запуске
+        let vehicleSettings = JSON.parse(localStorage.getItem('vehicleSettings')) || {};
+
+        // Если нет сохраненных настроек, добавляем базовые автомобили
+        if (Object.keys(vehicleSettings).length === 0) {
+            const baseVehicles = {
+                kamaz: { name: "КАМАЗ", fuelConsumption: 40, idleConsumption: 2 },
+                gaz: { name: "ГАЗель", fuelConsumption: 12, idleConsumption: 1 },
+                volvo: { name: "Volvo FH", fuelConsumption: 30, idleConsumption: 1.5 },
+                custom: { name: "Другой автомобиль", fuelConsumption: 8, idleConsumption: 1.5 }
+            };
+            
+            localStorage.setItem('vehicleSettings', JSON.stringify(baseVehicles));
+            vehicleSettings = baseVehicles;
+        }
+
+
+
+        // Функция для обновления списка автомобилей
+        function updateVehicleList() {
+            const select = document.getElementById('vehicleSelect');
+            select.innerHTML = '<option value="">Выберите автомобиль...</option>';
+            
+            Object.entries(vehicleSettings).forEach(([key, settings]) => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = `${settings.name} (расход: ${settings.fuelConsumption} л/100км, работа: ${settings.idleConsumption} л/ч)`;
+                select.appendChild(option);
+            });
+        }
+
+        // Функция для открытия модального окна добавления
+        function openAddVehicleModal() {
+            document.getElementById('addVehicleModal').style.display = 'block';
+            document.getElementById('vehicleName').value = '';
+            document.getElementById('vehicleFuel').value = '';
+            document.getElementById('vehicleIdle').value = '';
+        }
+
+        // Функция для открытия модального окна редактирования
+        function openEditVehicleModal() {
+            const selectedVehicle = document.getElementById('vehicleSelect').value;
+            if (!selectedVehicle) {
+                alert('Выберите автомобиль для редактирования');
+                return;
+            }
+
+            const settings = vehicleSettings[selectedVehicle];
+            if (!settings) {
+                alert('Ошибка: Не удалось найти настройки автомобиля');
+                return;
+            }
+
+            currentEditingVehicle = selectedVehicle;
+            document.getElementById('editVehicleName').value = settings.name;
+            document.getElementById('editVehicleFuel').value = settings.fuelConsumption;
+            document.getElementById('editVehicleIdle').value = settings.idleConsumption;
+            document.getElementById('editVehicleModal').style.display = 'block';
+        }
+
+        // Функция для сохранения изменений при редактировании
+        function saveEditedVehicle() {
+            if (!currentEditingVehicle) {
+                alert('Ошибка: Не выбран автомобиль для редактирования');
+                return;
+            }
+
+            const newName = document.getElementById('editVehicleName').value.trim();
+            const newFuel = parseFloat(document.getElementById('editVehicleFuel').value);
+            const newIdle = parseFloat(document.getElementById('editVehicleIdle').value);
+
+            if (!newName || isNaN(newFuel) || isNaN(newIdle)) {
+                alert('Пожалуйста, заполните все поля корректно');
+                return;
+            }
+
+            vehicleSettings[currentEditingVehicle] = {
+                name: newName,
+                fuelConsumption: newFuel,
+                idleConsumption: newIdle
+            };
+
+            localStorage.setItem('vehicleSettings', JSON.stringify(vehicleSettings));
+            updateVehicleList();
+            closeEditModal();
+            currentEditingVehicle = null;
+        }
+
+        // Функция для закрытия модального окна добавления
+        function closeAddModal() {
+            document.getElementById('addVehicleModal').style.display = 'none';
+            document.getElementById('vehicleName').value = '';
+            document.getElementById('vehicleFuel').value = '';
+            document.getElementById('vehicleIdle').value = '';
+        }
+
+        // Функция для закрытия модального окна редактирования
+        function closeEditModal() {
+            document.getElementById('editVehicleModal').style.display = 'none';
+            document.getElementById('editVehicleName').value = '';
+            document.getElementById('editVehicleFuel').value = '';
+            document.getElementById('editVehicleIdle').value = '';
+            currentEditingVehicle = null;
+        }
+
+        // Функция для закрытия любого модального окна
+        function closeModal() {
+            const addModal = document.getElementById('addVehicleModal');
+            const editModal = document.getElementById('editVehicleModal');
+            
+            if (addModal.style.display === 'block') {
+                closeAddModal();
+            } else if (editModal.style.display === 'block') {
+                closeEditModal();
+            }
+        }
+
+        // Функция для добавления нового автомобиля
+        function addVehicle(name, fuelConsumption, idleConsumption) {
+            const newKey = 'custom_' + Object.keys(vehicleSettings).length;
+            vehicleSettings[newKey] = {
+                name: name,
+                fuelConsumption: parseFloat(fuelConsumption),
+                idleConsumption: parseFloat(idleConsumption)
+            };
+            
+            localStorage.setItem('vehicleSettings', JSON.stringify(vehicleSettings));
+            updateVehicleList();
+            closeModal();
+        }
+
+        // Функция для открытия модального окна
+        function openAddVehicleModal() {
+            document.getElementById('addVehicleModal').style.display = 'block';
+        }
+
+        // Функция для закрытия модального окна
+        function closeModal() {
+            document.getElementById('addVehicleModal').style.display = 'none';
+        }
+
+        // Обновляем список автомобилей при запуске
+        updateVehicleList();
+
+        // Функция для обновления настроек автомобиля при выборе
+        function updateVehicleSettings() {
+            const selectedVehicle = document.getElementById('vehicleSelect').value;
+            const settings = vehicleSettings[selectedVehicle];
+            
+            if (settings) {
+                document.getElementById('fuelConsumption').value = settings.fuelConsumption;
+                document.getElementById('idleConsumption').value = settings.idleConsumption;
+            }
+        }
+
+        // Обновляем таблицу истории
+        function updateHistoryTable() {
+            const tableBody = document.getElementById('historyTableBody');
+            tableBody.innerHTML = '';
+            
+            calculationHistory.forEach((item, index) => {
+                const row = document.createElement('tr');
+                
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${item.vehicleName || 'Не указано'}</td>
+                    <td>${item.distance}</td>
+                    <td>${item.engineTime}</td>
+                    <td>${item.fuelConsumption}</td>
+                    <td>${item.idleConsumption}</td>
+                    <td>(${item.distance} × ${item.fuelConsumption} ÷ 100) + (${item.engineTime} × ${item.idleConsumption}) = ${item.distanceConsumption} + ${item.engineConsumption}</td>
+                    <td style="font-weight: bold;">${item.totalConsumption} л</td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+            
+            // Обновляем сводку по автомобилям
+            updateVehicleSummary();
+            
+            // Показываем секцию истории, если есть данные
+            document.getElementById('historySection').style.display = calculationHistory.length > 0 ? 'block' : 'none';
+        }
+        
+        // Обновляем сводку по автомобилям
+        function updateVehicleSummary() {
+            const summaryBody = document.getElementById('vehicleSummaryBody');
+            summaryBody.innerHTML = '';
+            
+            // Группируем данные по автомобилям
+            const vehicleSummary = {};
+            
+            calculationHistory.forEach(item => {
+                const vehicleName = item.vehicleName || 'Не указано';
+                const distance = parseFloat(item.distance);
+                const engineTime = parseFloat(item.engineTime);
+                const totalConsumption = parseFloat(item.totalConsumption);
+                
+                if (!vehicleSummary[vehicleName]) {
+                    vehicleSummary[vehicleName] = {
+                        trips: 0,
+                        totalDistance: 0,
+                        totalEngineTime: 0,
+                        totalFuel: 0
+                    };
+                }
+                
+                vehicleSummary[vehicleName].trips++;
+                vehicleSummary[vehicleName].totalDistance += distance;
+                vehicleSummary[vehicleName].totalEngineTime += engineTime;
+                vehicleSummary[vehicleName].totalFuel += totalConsumption;
+            });
+            
+            // Добавляем строки в таблицу
+            Object.keys(vehicleSummary).forEach(vehicleName => {
+                const data = vehicleSummary[vehicleName];
+                const avgConsumption = (data.totalFuel / data.totalDistance * 100).toFixed(2);
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td style="font-weight: bold;">${vehicleName}</td>
+                    <td>${data.trips}</td>
+                    <td>${data.totalDistance.toFixed(1)}</td>
+                    <td>${data.totalEngineTime.toFixed(1)}</td>
+                    <td>${data.totalFuel.toFixed(2)} л</td>
+                    <td>
+                        <button onclick="openVehicleDetails('${vehicleName}')" style="
+                            background-color: #3498db;
+                            color: white;
+                            border: none;
+                            padding: 5px 10px;
+                            border-radius: 4px;
+                            cursor: pointer;
+                            font-size: 14px;
+                        ">Показать детали</button>
+                    </td>
+                `;
+                
+                summaryBody.appendChild(row);
+            });
+        }
+
+        // Функция для открытия модального окна деталей автомобиля
+        function openVehicleDetails(vehicleName) {
+            currentVehicleDetails = vehicleName;
+            updateVehicleDetails();
+            document.getElementById('vehicleDetailsModal').style.display = 'block';
+        }
+
+        // Функция для обновления деталей автомобиля
+        function updateVehicleDetails() {
+            const detailsContent = document.getElementById('vehicleDetailsContent');
+            const vehicleHistory = calculationHistory.filter(item => item.vehicleName === currentVehicleDetails);
+            
+            detailsContent.innerHTML = `
+                <div class="vehicle-details-modal-header">
+                    <h3>${currentVehicleDetails}</h3>
+                    <span class="close" onclick="closeVehicleDetailsModal()">&times;</span>
+                </div>
+                <div class="vehicle-details-modal-body">
+                    <table class="vehicle-details-table">
+                        <thead>
+                            <tr>
+                                <th>Дата</th>
+                                <th>Пробег (км)</th>
+                                <th>Время работы (ч)</th>
+                                <th>Расход на пробег (л)</th>
+                                <th>Расход на работу (л)</th>
+                                <th>Общий расход (л)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${vehicleHistory.map(item => `
+                                <tr>
+                                    <td>${new Date(item.timestamp || Date.now()).toLocaleDateString()}</td>
+                                    <td>${item.distance}</td>
+                                    <td>${item.engineTime}</td>
+                                    <td>${item.distanceConsumption}</td>
+                                    <td>${item.engineConsumption}</td>
+                                    <td>${item.totalConsumption}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="vehicle-details-modal-footer">
+                    <button onclick="closeVehicleDetailsModal()">Закрыть</button>
+                </div>
+            `;
+        }
+
+        // Функция для закрытия модального окна деталей автомобиля
+        function closeVehicleDetailsModal() {
+            document.getElementById('vehicleDetailsModal').style.display = 'none';
+            currentVehicleDetails = null;
+        }
+        
+        // Очистка истории
+        function clearHistory() {
+            calculationHistory = [];
+            localStorage.setItem('fuelCalculations', JSON.stringify(calculationHistory));
+            updateHistoryTable();
+        }
+        
+        // Функция для расчета расхода топлива
+        function calculateFuel() {
+            // Получаем введенные данные
+            const vehicleName = document.getElementById('vehicleName').value.trim();
+            const distance = parseFloat(document.getElementById('distance').value) || 0;
+            const engineTime = parseFloat(document.getElementById('engineTime').value) || 0;
+            const fuelConsumption = parseFloat(document.getElementById('fuelConsumption').value) || 0;
+            const idleConsumption = parseFloat(document.getElementById('idleConsumption').value) || 0;
+            
+            // Расчет по формулам
+            const distanceConsumption = (distance * fuelConsumption) / 100;
+            const engineConsumption = engineTime * idleConsumption;
+            const totalConsumption = distanceConsumption + engineConsumption;
+            
+            // Обновляем результаты на странице с формулами
+            document.getElementById('distanceEquation').textContent = `${distance} × ${fuelConsumption} ÷ 100 = `;
+            document.getElementById('engineEquation').textContent = `${engineTime} × ${idleConsumption} = `;
+            document.getElementById('totalEquation').textContent = `${distanceConsumption.toFixed(2)} + ${engineConsumption.toFixed(2)} = `;
+            
+            document.getElementById('distanceConsumption').textContent = distanceConsumption.toFixed(2);
+            document.getElementById('engineConsumption').textContent = engineConsumption.toFixed(2);
+            document.getElementById('totalConsumption').textContent = totalConsumption.toFixed(2);
+            
+            // Показываем блок результатов
+            document.getElementById('result').style.display = 'block';
+            
+            // Добавляем расчет в историю
+            calculationHistory.push({
+                vehicleName: vehicleName,
+                distance: distance.toFixed(1),
+                engineTime: engineTime.toFixed(1),
+                fuelConsumption: fuelConsumption.toFixed(1),
+                idleConsumption: idleConsumption.toFixed(1),
+                distanceConsumption: distanceConsumption.toFixed(2),
+                engineConsumption: engineConsumption.toFixed(2),
+                totalConsumption: totalConsumption.toFixed(2)
+            });
+            
+            // Сохраняем историю в localStorage
+            localStorage.setItem('fuelCalculations', JSON.stringify(calculationHistory));
+            
+            // Обновляем таблицу истории
+            updateHistoryTable();
+        }
+        
+        // Загружаем историю при запуске
+        updateHistoryTable();
+
+        // Закрываем модальное окно при клике вне его
+        window.onclick = function(event) {
+            const modal = document.getElementById('addVehicleModal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+<!-- Модальное окно для деталей автомобиля -->
+<div id="vehicleDetailsModal" class="vehicle-details-modal">
+    <div id="vehicleDetailsContent" class="vehicle-details-modal-content">
+        <!-- Содержимое будет добавлено динамически -->
+    </div>
+</div>
+</html>
