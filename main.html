@@ -633,68 +633,71 @@
 
     <script>
         // Загружаем историю при запуске страницы
-        let calculationHistory = JSON.parse(localStorage.getItem('fuelCalculations')) || [];
+        let calculationHistory = [];
+
+        // Загружаем автомобили из API при запуске
+        let vehicleSettings = {};
         
-
-
-        // Загружаем настройки автомобилей из localStorage при запуске
-        let vehicleSettings = JSON.parse(localStorage.getItem('vehicleSettings')) || {};
-
-        // Если нет сохраненных настроек, добавляем базовые автомобили
-        if (Object.keys(vehicleSettings).length === 0) {
-            const baseVehicles = {
-                kamaz: { name: "КАМАЗ", fuelConsumption: 40, idleConsumption: 2 },
-                gaz: { name: "ГАЗель", fuelConsumption: 12, idleConsumption: 1 },
-                volvo: { name: "Volvo FH", fuelConsumption: 30, idleConsumption: 1.5 },
-                custom: { name: "Другой автомобиль", fuelConsumption: 8, idleConsumption: 1.5 }
-            };
-            
-            localStorage.setItem('vehicleSettings', JSON.stringify(baseVehicles));
-            vehicleSettings = baseVehicles;
+        // Функция для загрузки автомобилей из API
+        async function loadVehicles() {
+            try {
+                const response = await fetch('http://localhost:5000/api/vehicles');
+                const vehicles = await response.json();
+                vehicleSettings = {};
+                vehicles.forEach(v => {
+                    vehicleSettings[v.id] = {
+                        name: v.name,
+                        fuelConsumption: v.fuel_consumption,
+                        idleConsumption: v.idle_consumption
+                    };
+                });
+                updateVehicleList();
+            } catch (error) {
+                console.error('Ошибка при загрузке автомобилей:', error);
+            }
         }
 
-
+        // Загружаем автомобили при запуске
+        loadVehicles();
 
         // Функция для обновления списка автомобилей
         function updateVehicleList() {
             const select = document.getElementById('vehicleSelect');
             select.innerHTML = '<option value="">Выберите автомобиль...</option>';
             
-            Object.entries(vehicleSettings).forEach(([key, settings]) => {
+            Object.entries(vehicleSettings).forEach(([id, settings]) => {
                 const option = document.createElement('option');
-                option.value = key;
+                option.value = id;
                 option.textContent = `${settings.name} (расход: ${settings.fuelConsumption} л/100км, работа: ${settings.idleConsumption} л/ч)`;
                 select.appendChild(option);
             });
         }
 
         // Функция для открытия модального окна добавления
-        function openAddVehicleModal() {
+        async function openAddVehicleModal() {
             document.getElementById('addVehicleModal').style.display = 'block';
             document.getElementById('vehicleName').value = '';
-            document.getElementById('vehicleFuel').value = '';
-            document.getElementById('vehicleIdle').value = '';
+            document.getElementById('fuelConsumption').value = '';
+            document.getElementById('idleConsumption').value = '';
         }
 
         // Функция для открытия модального окна редактирования
-        function openEditVehicleModal() {
-            const selectedVehicle = document.getElementById('vehicleSelect').value;
-            if (!selectedVehicle) {
-                alert('Выберите автомобиль для редактирования');
-                return;
+        async function openEditModal(vehicleId) {
+            try {
+                const response = await fetch(`http://localhost:5000/api/vehicles/${vehicleId}`);
+                if (!response.ok) throw new Error('Автомобиль не найден');
+                
+                const vehicle = await response.json();
+                
+                document.getElementById('editVehicleModal').style.display = 'block';
+                document.getElementById('editVehicleId').value = vehicle.id;
+                document.getElementById('editVehicleName').value = vehicle.name;
+                document.getElementById('editFuelConsumption').value = vehicle.fuel_consumption;
+                document.getElementById('editIdleConsumption').value = vehicle.idle_consumption;
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Произошла ошибка при загрузке данных автомобиля');
             }
-
-            const settings = vehicleSettings[selectedVehicle];
-            if (!settings) {
-                alert('Ошибка: Не удалось найти настройки автомобиля');
-                return;
-            }
-
-            currentEditingVehicle = selectedVehicle;
-            document.getElementById('editVehicleName').value = settings.name;
-            document.getElementById('editVehicleFuel').value = settings.fuelConsumption;
-            document.getElementById('editVehicleIdle').value = settings.idleConsumption;
-            document.getElementById('editVehicleModal').style.display = 'block';
         }
 
         // Функция для сохранения изменений при редактировании
@@ -705,8 +708,8 @@
             }
 
             const newName = document.getElementById('editVehicleName').value.trim();
-            const newFuel = parseFloat(document.getElementById('editVehicleFuel').value);
-            const newIdle = parseFloat(document.getElementById('editVehicleIdle').value);
+            const newFuel = parseFloat(document.getElementById('editFuelConsumption').value);
+            const newIdle = parseFloat(document.getElementById('editIdleConsumption').value);
 
             if (!newName || isNaN(newFuel) || isNaN(newIdle)) {
                 alert('Пожалуйста, заполните все поля корректно');
@@ -719,26 +722,67 @@
                 idleConsumption: newIdle
             };
 
-            localStorage.setItem('vehicleSettings', JSON.stringify(vehicleSettings));
             updateVehicleList();
             closeEditModal();
             currentEditingVehicle = null;
+        }
+
+        // Функция для сохранения нового автомобиля
+        async function saveVehicle() {
+            const name = document.getElementById('vehicleName').value;
+            const fuelConsumption = parseFloat(document.getElementById('fuelConsumption').value);
+            const idleConsumption = parseFloat(document.getElementById('idleConsumption').value);
+            
+            if (!name || isNaN(fuelConsumption) || isNaN(idleConsumption)) {
+                alert('Пожалуйста, заполните все поля');
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/vehicles', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        fuel_consumption: fuelConsumption,
+                        idle_consumption: idleConsumption
+                    })
+                });
+                
+                if (response.ok) {
+                    const newVehicle = await response.json();
+                    vehicleSettings[newVehicle.id] = {
+                        name: newVehicle.name,
+                        fuelConsumption: newVehicle.fuel_consumption,
+                        idleConsumption: newVehicle.idle_consumption
+                    };
+                    updateVehicleList();
+                    closeAddVehicleModal();
+                } else {
+                    throw new Error('Ошибка при добавлении автомобиля');
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Произошла ошибка при добавлении автомобиля');
+            }
         }
 
         // Функция для закрытия модального окна добавления
         function closeAddModal() {
             document.getElementById('addVehicleModal').style.display = 'none';
             document.getElementById('vehicleName').value = '';
-            document.getElementById('vehicleFuel').value = '';
-            document.getElementById('vehicleIdle').value = '';
+            document.getElementById('fuelConsumption').value = '';
+            document.getElementById('idleConsumption').value = '';
         }
 
         // Функция для закрытия модального окна редактирования
         function closeEditModal() {
             document.getElementById('editVehicleModal').style.display = 'none';
             document.getElementById('editVehicleName').value = '';
-            document.getElementById('editVehicleFuel').value = '';
-            document.getElementById('editVehicleIdle').value = '';
+            document.getElementById('editFuelConsumption').value = '';
+            document.getElementById('editIdleConsumption').value = '';
             currentEditingVehicle = null;
         }
 
