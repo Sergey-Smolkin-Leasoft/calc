@@ -26,6 +26,32 @@
         .input-group {
             margin-bottom: 15px;
         }
+        .db-viewer {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .db-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .db-table th, .db-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .db-table th {
+            background-color: #f4f4f4;
+        }
+        .db-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .db-table tr:hover {
+            background-color: #f1f1f1;
+        }
         label {
             display: block;
             margin-bottom: 5px;
@@ -452,6 +478,41 @@
 <body>
     <div class="calculator">
         <h1>Калькулятор расхода топлива</h1>
+        <div class="db-viewer">
+            <h2>Просмотр базы данных</h2>
+            <button onclick="toggleDbViewer()">Показать/Скрыть базу данных</button>
+            <div id="dbViewerContent" style="display: none;">
+                <h3>Автомобили:</h3>
+                <table id="vehiclesTable" class="db-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Название</th>
+                            <th>Расход топлива (л/100км)</th>
+                            <th>Расход при работе (л/ч)</th>
+                            <th>Дата создания</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vehiclesTableBody"></tbody>
+                </table>
+
+                <h3>Расчеты:</h3>
+                <table id="calculationsTable" class="db-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>ID автомобиля</th>
+                            <th>Расстояние (км)</th>
+                            <th>Время работы (ч)</th>
+                            <th>Выражение</th>
+                            <th>Результат (л)</th>
+                            <th>Дата создания</th>
+                        </tr>
+                    </thead>
+                    <tbody id="calculationsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
         
         <div class="formulas">
             <h2>Используемые формулы:</h2>
@@ -632,38 +693,107 @@
     </div>
 
     <script>
-        // Загружаем историю при запуске страницы
-        let calculationHistory = JSON.parse(localStorage.getItem('fuelCalculations')) || [];
-        
+        // Глобальные переменные
+        let currentVehicleDetails = null;
+        let currentEditingVehicle = null;
+        let dbViewerVisible = false;
 
+        // Загружаем данные при старте
+        async function loadAllData() {
+            try {
+                // Загружаем автомобили
+                const vehiclesResponse = await fetch('http://localhost:5000/api/vehicles');
+                const vehicles = await vehiclesResponse.json();
+                updateVehicleList(vehicles);
 
-        // Загружаем настройки автомобилей из localStorage при запуске
-        let vehicleSettings = JSON.parse(localStorage.getItem('vehicleSettings')) || {};
+                // Загружаем историю
+                await updateHistoryTable();
 
-        // Если нет сохраненных настроек, добавляем базовые автомобили
-        if (Object.keys(vehicleSettings).length === 0) {
-            const baseVehicles = {
-                kamaz: { name: "КАМАЗ", fuelConsumption: 40, idleConsumption: 2 },
-                gaz: { name: "ГАЗель", fuelConsumption: 12, idleConsumption: 1 },
-                volvo: { name: "Volvo FH", fuelConsumption: 30, idleConsumption: 1.5 },
-                custom: { name: "Другой автомобиль", fuelConsumption: 8, idleConsumption: 1.5 }
-            };
-            
-            localStorage.setItem('vehicleSettings', JSON.stringify(baseVehicles));
-            vehicleSettings = baseVehicles;
+                // Загружаем сводку
+                await updateVehicleSummary();
+
+                // Загружаем базу данных
+                await updateDbViewer();
+            } catch (error) {
+                console.error('Ошибка при загрузке данных:', error);
+                alert('Не удалось загрузить данные');
+            }
         }
 
+        // Обновляем просмотр базы данных
+        async function updateDbViewer() {
+            try {
+                const response = await fetch('http://localhost:5000/api/db-viewer');
+                const data = await response.json();
 
+                if (response.ok) {
+                    const vehiclesBody = document.getElementById('vehiclesTableBody');
+                    const calculationsBody = document.getElementById('calculationsTableBody');
+
+                    if (!vehiclesBody || !calculationsBody) {
+                        throw new Error('Не найдены элементы для отображения базы данных');
+                    }
+
+                    vehiclesBody.innerHTML = '';
+                    calculationsBody.innerHTML = '';
+
+                    // Добавляем автомобили
+                    if (data.vehicles) {
+                        data.vehicles.forEach(vehicle => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${vehicle.id}</td>
+                                <td>${vehicle.name}</td>
+                                <td>${vehicle.fuel_consumption}</td>
+                                <td>${vehicle.idle_consumption}</td>
+                                <td>${new Date(vehicle.created_at).toLocaleString()}</td>
+                            `;
+                            vehiclesBody.appendChild(row);
+                        });
+                    }
+
+                    // Добавляем расчеты
+                    if (data.calculations) {
+                        data.calculations.forEach(calc => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${calc.id}</td>
+                                <td>${calc.vehicle_id}</td>
+                                <td>${calc.distance}</td>
+                                <td>${calc.idle_hours}</td>
+                                <td>${calc.expression}</td>
+                                <td>${calc.result}</td>
+                                <td>${new Date(calc.created_at).toLocaleString()}</td>
+                            `;
+                            calculationsBody.appendChild(row);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Ошибка при загрузке базы данных:', error);
+                alert('Не удалось загрузить базу данных');
+            }
+        }
+
+        // Переключение видимости базы данных
+        function toggleDbViewer() {
+            const dbViewer = document.getElementById('dbViewerContent');
+            if (!dbViewer) {
+                throw new Error('Не найден элемент базы данных');
+            }
+            dbViewerVisible = !dbViewerVisible;
+            dbViewer.style.display = dbViewerVisible ? 'block' : 'none';
+        }
 
         // Функция для обновления списка автомобилей
-        function updateVehicleList() {
+        function updateVehicleList(vehicles) {
             const select = document.getElementById('vehicleSelect');
             select.innerHTML = '<option value="">Выберите автомобиль...</option>';
             
-            Object.entries(vehicleSettings).forEach(([key, settings]) => {
+            vehicles.forEach(vehicle => {
                 const option = document.createElement('option');
-                option.value = key;
-                option.textContent = `${settings.name} (расход: ${settings.fuelConsumption} л/100км, работа: ${settings.idleConsumption} л/ч)`;
+                option.value = vehicle.id;
+                option.textContent = `${vehicle.name} (расход: ${vehicle.fuel_consumption} л/100км, работа: ${vehicle.idle_consumption} л/ч)`;
                 select.appendChild(option);
             });
         }
@@ -677,28 +807,30 @@
         }
 
         // Функция для открытия модального окна редактирования
-        function openEditVehicleModal() {
+        async function openEditVehicleModal() {
             const selectedVehicle = document.getElementById('vehicleSelect').value;
             if (!selectedVehicle) {
                 alert('Выберите автомобиль для редактирования');
                 return;
             }
 
-            const settings = vehicleSettings[selectedVehicle];
-            if (!settings) {
-                alert('Ошибка: Не удалось найти настройки автомобиля');
-                return;
-            }
+            try {
+                const response = await fetch(`http://localhost:5000/api/vehicles/${selectedVehicle}`);
+                const vehicle = await response.json();
 
-            currentEditingVehicle = selectedVehicle;
-            document.getElementById('editVehicleName').value = settings.name;
-            document.getElementById('editVehicleFuel').value = settings.fuelConsumption;
-            document.getElementById('editVehicleIdle').value = settings.idleConsumption;
-            document.getElementById('editVehicleModal').style.display = 'block';
+                currentEditingVehicle = vehicle.id;
+                document.getElementById('editVehicleName').value = vehicle.name;
+                document.getElementById('editVehicleFuel').value = vehicle.fuel_consumption;
+                document.getElementById('editVehicleIdle').value = vehicle.idle_consumption;
+                document.getElementById('editVehicleModal').style.display = 'block';
+            } catch (error) {
+                console.error('Ошибка при загрузке данных автомобиля:', error);
+                alert('Не удалось загрузить данные автомобиля');
+            }
         }
 
         // Функция для сохранения изменений при редактировании
-        function saveEditedVehicle() {
+        async function saveEditedVehicle() {
             if (!currentEditingVehicle) {
                 alert('Ошибка: Не выбран автомобиль для редактирования');
                 return;
@@ -713,16 +845,30 @@
                 return;
             }
 
-            vehicleSettings[currentEditingVehicle] = {
-                name: newName,
-                fuelConsumption: newFuel,
-                idleConsumption: newIdle
-            };
+            try {
+                const response = await fetch(`http://localhost:5000/api/vehicles/${currentEditingVehicle}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: newName,
+                        fuel_consumption: newFuel,
+                        idle_consumption: newIdle
+                    })
+                });
 
-            localStorage.setItem('vehicleSettings', JSON.stringify(vehicleSettings));
-            updateVehicleList();
-            closeEditModal();
-            currentEditingVehicle = null;
+                if (!response.ok) {
+                    throw new Error('Ошибка при обновлении автомобиля');
+                }
+
+                await loadAllData();
+                closeEditModal();
+                currentEditingVehicle = null;
+            } catch (error) {
+                console.error('Ошибка при обновлении автомобиля:', error);
+                alert('Не удалось обновить автомобиль');
+            }
         }
 
         // Функция для закрытия модального окна добавления
@@ -755,239 +901,185 @@
         }
 
         // Функция для добавления нового автомобиля
-        function addVehicle(name, fuelConsumption, idleConsumption) {
-            const newKey = 'custom_' + Object.keys(vehicleSettings).length;
-            vehicleSettings[newKey] = {
-                name: name,
-                fuelConsumption: parseFloat(fuelConsumption),
-                idleConsumption: parseFloat(idleConsumption)
-            };
-            
-            localStorage.setItem('vehicleSettings', JSON.stringify(vehicleSettings));
-            updateVehicleList();
-            closeModal();
-        }
+        async function addVehicle(name, fuelConsumption, idleConsumption) {
+            try {
+                const response = await fetch('http://localhost:5000/api/vehicles', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        fuel_consumption: parseFloat(fuelConsumption),
+                        idle_consumption: parseFloat(idleConsumption)
+                    })
+                });
 
-        // Функция для открытия модального окна
-        function openAddVehicleModal() {
-            document.getElementById('addVehicleModal').style.display = 'block';
-        }
+                if (!response.ok) {
+                    throw new Error('Ошибка при добавлении автомобиля');
+                }
 
-        // Функция для закрытия модального окна
-        function closeModal() {
-            document.getElementById('addVehicleModal').style.display = 'none';
+                await loadAllData();
+                closeModal();
+            } catch (error) {
+                console.error('Ошибка при добавлении автомобиля:', error);
+                alert('Не удалось добавить автомобиль');
+            }
         }
-
-        // Обновляем список автомобилей при запуске
-        updateVehicleList();
 
         // Функция для обновления настроек автомобиля при выборе
         function updateVehicleSettings() {
             const selectedVehicle = document.getElementById('vehicleSelect').value;
-            const settings = vehicleSettings[selectedVehicle];
+            const vehicle = vehicles.find(v => v.id === selectedVehicle);
             
-            if (settings) {
-                document.getElementById('fuelConsumption').value = settings.fuelConsumption;
-                document.getElementById('idleConsumption').value = settings.idleConsumption;
+            if (vehicle) {
+                document.getElementById('fuelConsumption').value = vehicle.fuel_consumption;
+                document.getElementById('idleConsumption').value = vehicle.idle_consumption;
             }
         }
 
         // Обновляем таблицу истории
-        function updateHistoryTable() {
-            const tableBody = document.getElementById('historyTableBody');
-            tableBody.innerHTML = '';
-            
-            calculationHistory.forEach((item, index) => {
-                const row = document.createElement('tr');
+        async function updateHistoryTable() {
+            try {
+                const response = await fetch('http://localhost:5000/api/history');
+                const data = await response.json();
                 
-                row.innerHTML = `
-                    <td>${index + 1}</td>
-                    <td>${item.vehicleName || 'Не указано'}</td>
-                    <td>${item.distance}</td>
-                    <td>${item.engineTime}</td>
-                    <td>${item.fuelConsumption}</td>
-                    <td>${item.idleConsumption}</td>
-                    <td>(${item.distance} × ${item.fuelConsumption} ÷ 100) + (${item.engineTime} × ${item.idleConsumption}) = ${item.distanceConsumption} + ${item.engineConsumption}</td>
-                    <td style="font-weight: bold;">${item.totalConsumption} л</td>
-                `;
-                
-                tableBody.appendChild(row);
-            });
-            
-            // Обновляем сводку по автомобилям
-            updateVehicleSummary();
-            
-            // Показываем секцию истории, если есть данные
-            document.getElementById('historySection').style.display = calculationHistory.length > 0 ? 'block' : 'none';
-        }
-        
-        // Обновляем сводку по автомобилям
-        function updateVehicleSummary() {
-            const summaryBody = document.getElementById('vehicleSummaryBody');
-            summaryBody.innerHTML = '';
-            
-            // Группируем данные по автомобилям
-            const vehicleSummary = {};
-            
-            calculationHistory.forEach(item => {
-                const vehicleName = item.vehicleName || 'Не указано';
-                const distance = parseFloat(item.distance);
-                const engineTime = parseFloat(item.engineTime);
-                const totalConsumption = parseFloat(item.totalConsumption);
-                
-                if (!vehicleSummary[vehicleName]) {
-                    vehicleSummary[vehicleName] = {
-                        trips: 0,
-                        totalDistance: 0,
-                        totalEngineTime: 0,
-                        totalFuel: 0
-                    };
+                if (response.ok) {
+                    const history = Array.isArray(data) ? data : [];
+                    
+                    const tbody = document.getElementById('historyTableBody');
+                    if (!tbody) {
+                        console.error('Не найден элемент с id "historyTableBody"');
+                        return;
+                    }
+                    
+                    tbody.innerHTML = '';
+                    
+                    history.forEach((item, index) => {
+                        const row = document.createElement('tr');
+                        const date = new Date(item.timestamp).toLocaleString();
+                        row.innerHTML = `
+                            <td>${index + 1}</td>
+                            <td>${item.vehicle}</td>
+                            <td>${item.distance}</td>
+                            <td>${item.idle_hours}</td>
+                            <td>${item.fuel_consumption} л/100км</td>
+                            <td>${item.idle_consumption} л/ч</td>
+                            <td>${item.expression}</td>
+                            <td>${item.result} л</td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                    
+                    if (history.length === 0) {
+                        document.getElementById('historySection').style.display = 'none';
+                    } else {
+                        document.getElementById('historySection').style.display = 'block';
+                    }
+                } else {
+                    console.error('Ошибка сервера:', data.error || 'Unknown error');
+                    alert('Не удалось загрузить историю расчетов');
                 }
-                
-                vehicleSummary[vehicleName].trips++;
-                vehicleSummary[vehicleName].totalDistance += distance;
-                vehicleSummary[vehicleName].totalEngineTime += engineTime;
-                vehicleSummary[vehicleName].totalFuel += totalConsumption;
-            });
-            
-            // Добавляем строки в таблицу
-            Object.keys(vehicleSummary).forEach(vehicleName => {
-                const data = vehicleSummary[vehicleName];
-                const avgConsumption = (data.totalFuel / data.totalDistance * 100).toFixed(2);
-                
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td style="font-weight: bold;">${vehicleName}</td>
-                    <td>${data.trips}</td>
-                    <td>${data.totalDistance.toFixed(1)}</td>
-                    <td>${data.totalEngineTime.toFixed(1)}</td>
-                    <td>${data.totalFuel.toFixed(2)} л</td>
-                    <td>
-                        <button onclick="openVehicleDetails('${vehicleName}')" style="
-                            background-color: #3498db;
-                            color: white;
-                            border: none;
-                            padding: 5px 10px;
-                            border-radius: 4px;
-                            cursor: pointer;
-                            font-size: 14px;
-                        ">Показать детали</button>
-                    </td>
-                `;
-                
-                summaryBody.appendChild(row);
-            });
+            } catch (error) {
+                console.error('Ошибка при загрузке истории:', error);
+                alert('Не удалось загрузить историю расчетов');
+            }
         }
 
-        // Функция для открытия модального окна деталей автомобиля
-        function openVehicleDetails(vehicleName) {
-            currentVehicleDetails = vehicleName;
-            updateVehicleDetails();
-            document.getElementById('vehicleDetailsModal').style.display = 'block';
+        // Обновляем сводку по автомобилям
+        async function updateVehicleSummary() {
+            try {
+                const response = await fetch('http://localhost:5000/api/vehicle-summary');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const summary = Array.isArray(data) ? data : [];
+                    
+                    const summaryBody = document.getElementById('vehicleSummaryBody');
+                    summaryBody.innerHTML = '';
+                    
+                    summary.forEach(vehicle => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td style="font-weight: bold;">${vehicle.vehicle}</td>
+                            <td>${vehicle.total_distance.toFixed(1)} км</td>
+                            <td>${vehicle.total_idle_hours.toFixed(1)} ч</td>
+                            <td>${vehicle.total_fuel.toFixed(2)} л</td>
+                            <td>${vehicle.average_consumption.toFixed(2)} л/100км</td>
+                        `;
+                        summaryBody.appendChild(row);
+                    });
+                } else {
+                    console.error('Ошибка сервера:', data.error || 'Unknown error');
+                    alert('Не удалось загрузить сводку по автомобилям');
+                }
+            } catch (error) {
+                console.error('Ошибка при загрузке сводки:', error);
+                alert('Не удалось загрузить сводку по автомобилям');
+            }
         }
 
-        // Функция для обновления деталей автомобиля
-        function updateVehicleDetails() {
-            const detailsContent = document.getElementById('vehicleDetailsContent');
-            const vehicleHistory = calculationHistory.filter(item => item.vehicleName === currentVehicleDetails);
-            
-            detailsContent.innerHTML = `
-                <div class="vehicle-details-modal-header">
-                    <h3>${currentVehicleDetails}</h3>
-                    <span class="close" onclick="closeVehicleDetailsModal()">&times;</span>
-                </div>
-                <div class="vehicle-details-modal-body">
-                    <table class="vehicle-details-table">
-                        <thead>
-                            <tr>
-                                <th>Дата</th>
-                                <th>Пробег (км)</th>
-                                <th>Время работы (ч)</th>
-                                <th>Расход на пробег (л)</th>
-                                <th>Расход на работу (л)</th>
-                                <th>Общий расход (л)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${vehicleHistory.map(item => `
-                                <tr>
-                                    <td>${new Date(item.timestamp || Date.now()).toLocaleDateString()}</td>
-                                    <td>${item.distance}</td>
-                                    <td>${item.engineTime}</td>
-                                    <td>${item.distanceConsumption}</td>
-                                    <td>${item.engineConsumption}</td>
-                                    <td>${item.totalConsumption}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-                <div class="vehicle-details-modal-footer">
-                    <button onclick="closeVehicleDetailsModal()">Закрыть</button>
-                </div>
-            `;
+        // Функция для очистки истории
+        async function clearHistory() {
+            try {
+                const response = await fetch('http://localhost:5000/api/history', {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Ошибка при очистке истории');
+                }
+
+                await updateHistoryTable();
+            } catch (error) {
+                console.error('Ошибка при очистке истории:', error);
+                alert('Не удалось очистить историю');
+            }
         }
 
-        // Функция для закрытия модального окна деталей автомобиля
-        function closeVehicleDetailsModal() {
-            document.getElementById('vehicleDetailsModal').style.display = 'none';
-            currentVehicleDetails = null;
-        }
-        
-        // Очистка истории
-        function clearHistory() {
-            calculationHistory = [];
-            localStorage.setItem('fuelCalculations', JSON.stringify(calculationHistory));
-            updateHistoryTable();
-        }
-        
         // Функция для расчета расхода топлива
-        function calculateFuel() {
-            // Получаем введенные данные
-            const vehicleName = document.getElementById('vehicleName').value.trim();
+        async function calculateFuel() {
             const distance = parseFloat(document.getElementById('distance').value) || 0;
-            const engineTime = parseFloat(document.getElementById('engineTime').value) || 0;
-            const fuelConsumption = parseFloat(document.getElementById('fuelConsumption').value) || 0;
-            const idleConsumption = parseFloat(document.getElementById('idleConsumption').value) || 0;
+            const idleHours = parseFloat(document.getElementById('idleHours').value) || 0;
+            const selectedVehicle = document.getElementById('vehicleSelect').value;
             
-            // Расчет по формулам
-            const distanceConsumption = (distance * fuelConsumption) / 100;
-            const engineConsumption = engineTime * idleConsumption;
-            const totalConsumption = distanceConsumption + engineConsumption;
-            
-            // Обновляем результаты на странице с формулами
-            document.getElementById('distanceEquation').textContent = `${distance} × ${fuelConsumption} ÷ 100 = `;
-            document.getElementById('engineEquation').textContent = `${engineTime} × ${idleConsumption} = `;
-            document.getElementById('totalEquation').textContent = `${distanceConsumption.toFixed(2)} + ${engineConsumption.toFixed(2)} = `;
-            
-            document.getElementById('distanceConsumption').textContent = distanceConsumption.toFixed(2);
-            document.getElementById('engineConsumption').textContent = engineConsumption.toFixed(2);
-            document.getElementById('totalConsumption').textContent = totalConsumption.toFixed(2);
-            
-            // Показываем блок результатов
-            document.getElementById('result').style.display = 'block';
-            
-            // Добавляем расчет в историю
-            calculationHistory.push({
-                vehicleName: vehicleName,
-                distance: distance.toFixed(1),
-                engineTime: engineTime.toFixed(1),
-                fuelConsumption: fuelConsumption.toFixed(1),
-                idleConsumption: idleConsumption.toFixed(1),
-                distanceConsumption: distanceConsumption.toFixed(2),
-                engineConsumption: engineConsumption.toFixed(2),
-                totalConsumption: totalConsumption.toFixed(2)
-            });
-            
-            // Сохраняем историю в localStorage
-            localStorage.setItem('fuelCalculations', JSON.stringify(calculationHistory));
-            
-            // Обновляем таблицу истории
-            updateHistoryTable();
+            if (!selectedVehicle) {
+                alert('Пожалуйста, выберите автомобиль');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:5000/api/calculate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        vehicle_id: selectedVehicle,
+                        distance: distance,
+                        idle_hours: idleHours
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Ошибка при расчете');
+                }
+
+                const result = await response.json();
+                
+                // Обновляем результаты
+                document.getElementById('fuelUsed').textContent = result.fuel_used.toFixed(2) + ' л';
+                document.getElementById('fuelCost').textContent = result.fuel_cost.toFixed(2) + ' руб';
+                
+                await updateHistoryTable();
+            } catch (error) {
+                console.error('Ошибка при расчете:', error);
+                alert('Не удалось выполнить расчет');
+            }
         }
-        
-        // Загружаем историю при запуске
-        updateHistoryTable();
+
+        // Загружаем данные при запуске
+        loadAllData();
 
         // Закрываем модальное окно при клике вне его
         window.onclick = function(event) {
