@@ -532,17 +532,13 @@
                     <div style="display: flex; gap: 5px; align-items: center;">
                         <button onclick="openAddVehicleModal()" style="width: 120px; padding: 5px 10px; font-size: 14px;">Добавить</button>
                         <button onclick="openEditVehicleModal()" style="width: 120px; padding: 5px 10px; font-size: 14px;">Редактировать</button>
+                        <button onclick="deleteSelectedVehicle()" style="width: 120px; padding: 5px 10px; font-size: 14px; background-color: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.3s;">Удалить</button>
                     </div>
                 </div>
             </div>
-            <div class="input-group">
-                <label for="fuelConsumption">Расход топлива на 100 км (л):</label>
-                <input type="number" id="fuelConsumption" value="8" min="0" step="0.1">
-            </div>
-            <div class="input-group">
-                <label for="idleConsumption">Расход топлива при работе двигателя (л/час):</label>
-                <input type="number" id="idleConsumption" value="1.5" min="0" step="0.1">
-            </div>
+            
+
+            
         </div>
 
         <div class="input-group">
@@ -665,30 +661,25 @@
     </div>
 
     <!-- Модальное окно для редактирования автомобиля -->
-    <div id="editVehicleModal" class="modal">
+    <div id="editVehicleModal" class="modal" style="display: none;">
         <div class="modal-content">
-            <div class="modal-header">
-                <span class="close" onclick="closeModal()">&times;</span>
-                <h2>Редактирование автомобиля</h2>
-            </div>
-            <div class="modal-body">
+            <span class="close" onclick="closeEditModal()">&times;</span>
+            <h2>Редактирование автомобиля</h2>
+            <form id="editVehicleForm" onsubmit="event.preventDefault(); saveEditedVehicle();">
                 <div class="input-group">
                     <label for="editVehicleName">Название автомобиля:</label>
                     <input type="text" id="editVehicleName" required>
                 </div>
                 <div class="input-group">
-                    <label for="editVehicleFuel">Расход топлива на 100 км (л):</label>
-                    <input type="number" id="editVehicleFuel" required min="0" step="0.1">
+                    <label for="editFuelConsumption">Расход топлива на 100 км (л):</label>
+                    <input type="number" id="editFuelConsumption" min="0" step="0.1" required>
                 </div>
                 <div class="input-group">
-                    <label for="editVehicleIdle">Расход топлива при работе двигателя (л/час):</label>
-                    <input type="number" id="editVehicleIdle" required min="0" step="0.1">
+                    <label for="editIdleConsumption">Расход топлива при работе двигателя (л/час):</label>
+                    <input type="number" id="editIdleConsumption" min="0" step="0.1" required>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button onclick="saveEditedVehicle()">Сохранить</button>
-                <button onclick="closeEditModal()">Отмена</button>
-            </div>
+                <button type="submit" style="background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;">Сохранить изменения</button>
+            </form>
         </div>
     </div>
 
@@ -697,13 +688,30 @@
         let currentVehicleDetails = null;
         let currentEditingVehicle = null;
         let dbViewerVisible = false;
+        let vehicles = [];
 
         // Загружаем данные при старте
         async function loadAllData() {
             try {
-                // Загружаем автомобили
+                // Загружаем автомобили с их расчетами
                 const vehiclesResponse = await fetch('http://localhost:5000/api/vehicles');
-                const vehicles = await vehiclesResponse.json();
+                vehicles = await vehiclesResponse.json();
+                
+                // Загружаем последние расчеты для каждого автомобиля
+                for (let vehicle of vehicles) {
+                    const calculationsResponse = await fetch(`http://localhost:5000/api/vehicle-calculations/${vehicle.id}`);
+                    const calculations = await calculationsResponse.json();
+                    
+                    if (calculations.length > 0) {
+                        const lastCalculation = calculations[0]; // Берем последний расчет
+                        vehicle.distance = lastCalculation.distance;
+                        vehicle.idle_hours = lastCalculation.idle_hours;
+                    } else {
+                        vehicle.distance = 0;
+                        vehicle.idle_hours = 0;
+                    }
+                }
+                
                 updateVehicleList(vehicles);
 
                 // Загружаем историю
@@ -786,11 +794,11 @@
         }
 
         // Функция для обновления списка автомобилей
-        function updateVehicleList(vehicles) {
+        function updateVehicleList(newVehicles) {
             const select = document.getElementById('vehicleSelect');
             select.innerHTML = '<option value="">Выберите автомобиль...</option>';
             
-            vehicles.forEach(vehicle => {
+            newVehicles.forEach(vehicle => {
                 const option = document.createElement('option');
                 option.value = vehicle.id;
                 option.textContent = `${vehicle.name} (расход: ${vehicle.fuel_consumption} л/100км, работа: ${vehicle.idle_consumption} л/ч)`;
@@ -801,14 +809,53 @@
         // Функция для открытия модального окна добавления
         function openAddVehicleModal() {
             document.getElementById('addVehicleModal').style.display = 'block';
-            document.getElementById('vehicleName').value = '';
-            document.getElementById('vehicleFuel').value = '';
-            document.getElementById('vehicleIdle').value = '';
-        }
+                
 
-        // Функция для открытия модального окна редактирования
+                vehiclesBody.innerHTML = '';
+                calculationsBody.innerHTML = '';
+
+                // Добавляем автомобили
+                if (data.vehicles) {
+                    data.vehicles.forEach(vehicle => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${vehicle.id}</td>
+                            <td>${vehicle.name}</td>
+                            <td>${vehicle.fuel_consumption}</td>
+                            <td>${vehicle.idle_consumption}</td>
+                            <td>${new Date(vehicle.created_at).toLocaleString()}</td>
+                        `;
+                        vehiclesBody.appendChild(row);
+                    });
+                }
+
+                // Добавляем расчеты
+                if (data.calculations) {
+                    data.calculations.forEach(calc => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${calc.id}</td>
+                            <td>${calc.vehicle_id}</td>
+                            <td>${calc.distance}</td>
+                            <td>${calc.idle_hours}</td>
+                            <td>${calc.expression}</td>
+                            <td>${calc.result}</td>
+                            <td>${new Date(calc.created_at).toLocaleString()}</td>
+                        `;
+                        calculationsBody.appendChild(row);
+                    });
+                }
+
+                // Сбрасываем поля формы добавления автомобиля
+                document.getElementById('vehicleName').value = '';
+                document.getElementById('vehicleFuel').value = '';
+                document.getElementById('vehicleIdle').value = '';
+            }
+        
+        // Функция для открытия модального окна редактирования автомобиля
         async function openEditVehicleModal() {
             const selectedVehicle = document.getElementById('vehicleSelect').value;
+            
             if (!selectedVehicle) {
                 alert('Выберите автомобиль для редактирования');
                 return;
@@ -816,12 +863,15 @@
 
             try {
                 const response = await fetch(`http://localhost:5000/api/vehicles/${selectedVehicle}`);
+                if (!response.ok) {
+                    throw new Error('Ошибка при загрузке данных автомобиля');
+                }
                 const vehicle = await response.json();
-
-                currentEditingVehicle = vehicle.id;
+                
                 document.getElementById('editVehicleName').value = vehicle.name;
-                document.getElementById('editVehicleFuel').value = vehicle.fuel_consumption;
-                document.getElementById('editVehicleIdle').value = vehicle.idle_consumption;
+                document.getElementById('editFuelConsumption').value = vehicle.fuel_consumption;
+                document.getElementById('editIdleConsumption').value = vehicle.idle_consumption;
+                currentEditingVehicle = vehicle.id;
                 document.getElementById('editVehicleModal').style.display = 'block';
             } catch (error) {
                 console.error('Ошибка при загрузке данных автомобиля:', error);
@@ -829,19 +879,14 @@
             }
         }
 
-        // Функция для сохранения изменений при редактировании
+        // Функция для сохранения изменений автомобиля
         async function saveEditedVehicle() {
-            if (!currentEditingVehicle) {
-                alert('Ошибка: Не выбран автомобиль для редактирования');
-                return;
-            }
+            const name = document.getElementById('editVehicleName').value;
+            const fuelConsumption = parseFloat(document.getElementById('editFuelConsumption').value);
+            const idleConsumption = parseFloat(document.getElementById('editIdleConsumption').value);
 
-            const newName = document.getElementById('editVehicleName').value.trim();
-            const newFuel = parseFloat(document.getElementById('editVehicleFuel').value);
-            const newIdle = parseFloat(document.getElementById('editVehicleIdle').value);
-
-            if (!newName || isNaN(newFuel) || isNaN(newIdle)) {
-                alert('Пожалуйста, заполните все поля корректно');
+            if (!name || isNaN(fuelConsumption) || isNaN(idleConsumption)) {
+                alert('Пожалуйста, заполните все поля');
                 return;
             }
 
@@ -849,12 +894,12 @@
                 const response = await fetch(`http://localhost:5000/api/vehicles/${currentEditingVehicle}`, {
                     method: 'PUT',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        name: newName,
-                        fuel_consumption: newFuel,
-                        idle_consumption: newIdle
+                        name: name,
+                        fuel_consumption: fuelConsumption,
+                        idle_consumption: idleConsumption
                     })
                 });
 
@@ -862,21 +907,13 @@
                     throw new Error('Ошибка при обновлении автомобиля');
                 }
 
+                document.getElementById('editVehicleModal').style.display = 'none';
                 await loadAllData();
-                closeEditModal();
-                currentEditingVehicle = null;
+                alert('Автомобиль успешно обновлен');
             } catch (error) {
                 console.error('Ошибка при обновлении автомобиля:', error);
                 alert('Не удалось обновить автомобиль');
             }
-        }
-
-        // Функция для закрытия модального окна добавления
-        function closeAddModal() {
-            document.getElementById('addVehicleModal').style.display = 'none';
-            document.getElementById('vehicleName').value = '';
-            document.getElementById('vehicleFuel').value = '';
-            document.getElementById('vehicleIdle').value = '';
         }
 
         // Функция для закрытия модального окна редактирования
@@ -930,11 +967,93 @@
         // Функция для обновления настроек автомобиля при выборе
         function updateVehicleSettings() {
             const selectedVehicle = document.getElementById('vehicleSelect').value;
-            const vehicle = vehicles.find(v => v.id === selectedVehicle);
             
+            if (!selectedVehicle) {
+                document.getElementById('fuelConsumption').value = '0';
+                document.getElementById('idleConsumption').value = '0';
+                return;
+            }
+
+            const vehicle = vehicles.find(v => v.id === selectedVehicle);
             if (vehicle) {
                 document.getElementById('fuelConsumption').value = vehicle.fuel_consumption;
                 document.getElementById('idleConsumption').value = vehicle.idle_consumption;
+                
+                // Обновляем результаты расчета с текущими значениями пробега и времени
+                updateCalculationResults();
+            }
+        }
+
+        // Функция для обновления результатов расчета
+        function updateCalculationResults() {
+            const selectedVehicle = document.getElementById('vehicleSelect').value;
+
+            if (!selectedVehicle) {
+                document.getElementById('distanceConsumption').textContent = '0';
+                document.getElementById('engineConsumption').textContent = '0';
+                document.getElementById('totalConsumption').textContent = '0';
+                return;
+            }
+
+            const vehicle = vehicles.find(v => v.id === selectedVehicle);
+            if (vehicle) {
+                // Используем значения из базы данных
+                const distanceConsumption = (vehicle.distance * vehicle.fuel_consumption / 100).toFixed(2);
+                const engineConsumption = (vehicle.idle_hours * vehicle.idle_consumption).toFixed(2);
+                const totalConsumption = (parseFloat(distanceConsumption) + parseFloat(engineConsumption)).toFixed(2);
+
+                document.getElementById('distanceConsumption').textContent = distanceConsumption;
+                document.getElementById('engineConsumption').textContent = engineConsumption;
+                document.getElementById('totalConsumption').textContent = totalConsumption;
+
+                // Обновляем формулу
+                document.getElementById('distanceEquation').textContent = `${vehicle.distance} * ${vehicle.fuel_consumption} / 100 = ${distanceConsumption}`;
+                document.getElementById('engineEquation').textContent = `${vehicle.idle_hours} * ${vehicle.idle_consumption} = ${engineConsumption}`;
+                document.getElementById('totalEquation').textContent = `${distanceConsumption} + ${engineConsumption} = ${totalConsumption}`;
+            }
+        }
+
+        // Функция для обновления списка автомобилей
+        function updateVehicleList(newVehicles) {
+            const select = document.getElementById('vehicleSelect');
+            select.innerHTML = '<option value="">Выберите автомобиль...</option>';
+            
+            newVehicles.forEach(vehicle => {
+                const option = document.createElement('option');
+                option.value = vehicle.id;
+                option.textContent = `${vehicle.name} (расход: ${vehicle.fuel_consumption} л/100км, работа: ${vehicle.idle_consumption} л/ч)`;
+                select.appendChild(option);
+            });
+        }
+
+        // Функция для удаления выбранного автомобиля
+        async function deleteSelectedVehicle() {
+            const selectedVehicle = document.getElementById('vehicleSelect').value;
+            
+            if (!selectedVehicle) {
+                alert('Выберите автомобиль для удаления');
+                return;
+            }
+
+            if (!confirm('Вы уверены, что хотите удалить этот автомобиль? Все связанные с ним расчеты также будут удалены.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://localhost:5000/api/vehicles/${selectedVehicle}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Ошибка при удалении автомобиля');
+                }
+
+                // Обновляем данные
+                await loadAllData();
+                alert('Автомобиль успешно удален');
+            } catch (error) {
+                console.error('Ошибка при удалении автомобиля:', error);
+                alert('Не удалось удалить автомобиль');
             }
         }
 
@@ -1040,7 +1159,7 @@
         // Функция для расчета расхода топлива
         async function calculateFuel() {
             const distance = parseFloat(document.getElementById('distance').value) || 0;
-            const idleHours = parseFloat(document.getElementById('idleHours').value) || 0;
+            const engineTime = parseFloat(document.getElementById('engineTime').value) || 0;
             const selectedVehicle = document.getElementById('vehicleSelect').value;
             
             if (!selectedVehicle) {
@@ -1057,7 +1176,7 @@
                     body: JSON.stringify({
                         vehicle_id: selectedVehicle,
                         distance: distance,
-                        idle_hours: idleHours
+                        idle_hours: engineTime
                     })
                 });
 
@@ -1068,10 +1187,23 @@
                 const result = await response.json();
                 
                 // Обновляем результаты
-                document.getElementById('fuelUsed').textContent = result.fuel_used.toFixed(2) + ' л';
-                document.getElementById('fuelCost').textContent = result.fuel_cost.toFixed(2) + ' руб';
+                document.getElementById('distanceConsumption').textContent = result.distance_consumption.toFixed(2);
+                document.getElementById('engineConsumption').textContent = result.engine_consumption.toFixed(2);
+                document.getElementById('totalConsumption').textContent = result.total_consumption.toFixed(2);
                 
+                // Обновляем формулы
+                document.getElementById('distanceEquation').textContent = `${result.distance} км × ${result.fuel_consumption} л/100км ÷ 100`;
+                document.getElementById('engineEquation').textContent = `${result.idle_hours} ч × ${result.idle_consumption} л/ч`;
+                document.getElementById('totalEquation').textContent = `${result.distance_consumption.toFixed(2)} л + ${result.engine_consumption.toFixed(2)} л`;
+                
+                // Показываем результат
+                document.getElementById('result').style.display = 'block';
+                
+                // Обновляем историю
                 await updateHistoryTable();
+                
+                // Обновляем сводку по автомобилям
+                await updateVehicleSummary();
             } catch (error) {
                 console.error('Ошибка при расчете:', error);
                 alert('Не удалось выполнить расчет');

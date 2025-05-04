@@ -15,6 +15,9 @@ class Vehicle(db.Model):
     fuel_consumption = db.Column(db.Float, nullable=False)
     idle_consumption = db.Column(db.Float, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Vehicle {self.name}>'
 
     calculations = db.relationship('Calculation', backref='vehicle', lazy=True)
 
@@ -62,20 +65,25 @@ def add_vehicle():
 
 @app.route('/api/vehicles/<int:vehicle_id>', methods=['PUT'])
 def update_vehicle(vehicle_id):
-    vehicle = Vehicle.query.get_or_404(vehicle_id)
-    data = request.json
-    
-    vehicle.name = data['name']
-    vehicle.fuel_consumption = float(data['fuel_consumption'])
-    vehicle.idle_consumption = float(data['idle_consumption'])
-    
-    db.session.commit()
-    return jsonify({
-        'id': vehicle.id,
-        'name': vehicle.name,
-        'fuel_consumption': vehicle.fuel_consumption,
-        'idle_consumption': vehicle.idle_consumption
-    })
+    try:
+        vehicle = Vehicle.query.get_or_404(vehicle_id)
+        data = request.json
+        
+        vehicle.name = data['name']
+        vehicle.fuel_consumption = float(data['fuel_consumption'])
+        vehicle.idle_consumption = float(data['idle_consumption'])
+        
+        db.session.commit()
+        return jsonify({
+            'id': vehicle.id,
+            'name': vehicle.name,
+            'fuel_consumption': vehicle.fuel_consumption,
+            'idle_consumption': vehicle.idle_consumption
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error in update_vehicle: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/calculate', methods=['POST'])
 def calculate():
@@ -96,20 +104,89 @@ def calculate():
             expression=f"{distance} * {vehicle.fuel_consumption} / 100 + {idle_hours} * {vehicle.idle_consumption}",
             result=result
         )
-        
+
+        # Обновляем данные автомобиля
+        vehicle.distance = distance
+        vehicle.idle_hours = idle_hours
+
         db.session.add(calculation)
         db.session.commit()
-        
+
         return jsonify({
-            'vehicle': vehicle.name,
             'distance': distance,
+            'fuel_consumption': vehicle.fuel_consumption,
             'idle_hours': idle_hours,
-            'fuel_used': result,
-            'fuel_cost': result * 50,
-            'timestamp': datetime.now().isoformat()
+            'idle_consumption': vehicle.idle_consumption,
+            'distance_consumption': distance * vehicle.fuel_consumption / 100,
+            'engine_consumption': idle_hours * vehicle.idle_consumption,
+            'total_consumption': result,
+            'expression': calculation.expression
         })
     except Exception as e:
-        print(f"Error in calculate: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/vehicle-calculations/<int:vehicle_id>', methods=['GET'])
+def get_vehicle_calculations(vehicle_id):
+    try:
+        calculations = Calculation.query.filter_by(vehicle_id=vehicle_id).all()
+        return jsonify([
+            {
+                'id': calc.id,
+                'distance': calc.distance,
+                'idle_hours': calc.idle_hours,
+                'expression': calc.expression,
+                'result': calc.result,
+                'timestamp': calc.created_at.isoformat()
+            }
+            for calc in calculations
+        ])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/vehicles/<int:vehicle_id>', methods=['GET', 'PUT'])
+def vehicle_details(vehicle_id):
+    try:
+        vehicle = Vehicle.query.get_or_404(vehicle_id)
+        
+        if request.method == 'GET':
+            return jsonify({
+                'id': vehicle.id,
+                'name': vehicle.name,
+                'fuel_consumption': vehicle.fuel_consumption,
+                'idle_consumption': vehicle.idle_consumption
+            })
+        
+        if request.method == 'PUT':
+            data = request.json
+            vehicle.name = data.get('name', vehicle.name)
+            vehicle.fuel_consumption = float(data.get('fuel_consumption', vehicle.fuel_consumption))
+            vehicle.idle_consumption = float(data.get('idle_consumption', vehicle.idle_consumption))
+            
+            db.session.commit()
+            return jsonify({'message': 'Автомобиль успешно обновлен'})
+        
+        return jsonify({'error': 'Method not allowed'}), 405
+    except Exception as e:
+        print(f"Error in vehicle_details: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/vehicles/<int:vehicle_id>', methods=['DELETE'])
+def delete_vehicle(vehicle_id):
+    try:
+        vehicle = Vehicle.query.get_or_404(vehicle_id)
+        
+        # Удаляем все расчеты для этого автомобиля
+        Calculation.query.filter_by(vehicle_id=vehicle_id).delete()
+        
+        # Удаляем сам автомобиль
+        db.session.delete(vehicle)
+        db.session.commit()
+        
+        return jsonify({'message': 'Автомобиль успешно удален'})
+    except Exception as e:
+        print(f"Error in delete_vehicle: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/history', methods=['GET'])
@@ -132,6 +209,17 @@ def get_history():
         ])
     except Exception as e:
         print(f"Error in get_history: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/history', methods=['DELETE'])
+def clear_history():
+    try:
+        Calculation.query.delete()
+        db.session.commit()
+        return '', 204  # No content
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error in clear_history: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/vehicle-summary', methods=['GET'])
@@ -209,19 +297,6 @@ if __name__ == '__main__':
     with app.app_context():
         # Create tables if they don't exist
         db.create_all()
-        app.run(debug=True, host='0.0.0.0')
-        existing_vehicles = Vehicle.query.all()
-        if not existing_vehicles:
-            base_vehicles = [
-                {'name': 'Другой автомобиль', 'fuel_consumption': 8, 'idle_consumption': 1.5}
-            ]
-            for vehicle_data in base_vehicles:
-                vehicle = Vehicle(
-                    name=vehicle_data['name'],
-                    fuel_consumption=vehicle_data['fuel_consumption'],
-                    idle_consumption=vehicle_data['idle_consumption']
-                )
-                db.session.add(vehicle)
-            db.session.commit()
+
     
     app.run(debug=True, host='0.0.0.0')
