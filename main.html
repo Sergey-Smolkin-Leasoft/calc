@@ -78,6 +78,68 @@
             color: #2c3e50;
             font-size: 18px;
         }
+        .details-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .details-btn:hover {
+            background-color: #45a049;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            width: 80%;
+            max-width: 800px;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .close {
+            position: absolute;
+            right: 10px;
+            top: 5px;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        #vehicleDetailsTable table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        #vehicleDetailsTable th, #vehicleDetailsTable td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        #vehicleDetailsTable th {
+            background-color: #f4f4f4;
+        }
+
+        #vehicleDetailsTable tr:hover {
+            background-color: #f5f5f5;
+        }
         button {
             background-color: #3498db;
             color: white;
@@ -683,11 +745,19 @@
         </div>
     </div>
 
+    <!-- Модальное окно для отображения деталей автомобиля -->
+    <div id="vehicleDetailsModal" class="modal">
+        <div class="modal-content">
+            <!-- Содержимое модального окна будет добавлено динамически -->
+        </div>
+    </div>
+
     <script>
         // Глобальные переменные
         let currentVehicleDetails = null;
         let currentEditingVehicle = null;
         let dbViewerVisible = false;
+        // Глобальная переменная для хранения автомобилей
         let vehicles = [];
 
         // Загружаем данные при старте
@@ -1122,9 +1192,13 @@
                         row.innerHTML = `
                             <td style="font-weight: bold;">${vehicle.vehicle}</td>
                             <td>${vehicle.total_distance.toFixed(1)} км</td>
-                            <td>${vehicle.total_idle_hours.toFixed(1)} ч</td>
+                            <td>${vehicle.total_idle_hours.toFixed(2)} ч</td>
                             <td>${vehicle.total_fuel.toFixed(2)} л</td>
+                            
                             <td>${vehicle.average_consumption.toFixed(2)} л/100км</td>
+                            <td>
+                                <button class="details-btn" data-vehicle-id="${vehicle.id}">Подробнее</button>
+                            </td>
                         `;
                         summaryBody.appendChild(row);
                     });
@@ -1213,19 +1287,136 @@
         // Загружаем данные при запуске
         loadAllData();
 
+        // Закрываем модальное окно при клике вне его или на крестик
+        function closeModal() {
+            const modal = document.getElementById('vehicleDetailsModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
         // Закрываем модальное окно при клике вне его
         window.onclick = function(event) {
-            const modal = document.getElementById('addVehicleModal');
+            const modal = document.getElementById('vehicleDetailsModal');
             if (event.target == modal) {
                 modal.style.display = 'none';
+            }
+        };
+
+        // Добавляем обработчик клика для кнопок "Подробнее"
+        document.addEventListener('DOMContentLoaded', function() {
+            document.addEventListener('click', function(event) {
+                const button = event.target.closest('.details-btn');
+                if (button) {
+                    const vehicleId = button.dataset.vehicleId;
+                    if (vehicleId) {
+                        showVehicleDetails(vehicleId);
+                    }
+                }
+            });
+        });
+
+        // Функция для отображения деталей автомобиля
+        async function showVehicleDetails(vehicleId) {
+            try {
+                // Если vehicleId не определен, пробуем получить его из элемента, который вызвал функцию
+                if (!vehicleId) {
+                    const button = event.target.closest('.details-btn');
+                    if (button && button.dataset.vehicleId) {
+                        vehicleId = button.dataset.vehicleId;
+                    }
+                }
+                
+                // Проверяем, что vehicleId определен
+                if (!vehicleId) {
+                    console.error('ID автомобиля не определен');
+                    alert('Ошибка: ID автомобиля не определен');
+                    return;
+                }
+
+                // Находим автомобиль по ID
+                const vehicle = vehicles.find(v => v.id.toString() === vehicleId.toString());
+                if (!vehicle) {
+                    console.error('Автомобиль не найден:', vehicleId);
+                    alert('Автомобиль не найден в списке');
+                    return;
+                }
+
+                // Загружаем историю расчетов
+                const response = await fetch(`http://localhost:5000/api/vehicle-calculations/${vehicleId}`);
+                if (!response.ok) {
+                    throw new Error('Ошибка при загрузке истории расчетов');
+                }
+                const calculations = await response.json();
+
+                // Находим модальное окно
+                const modal = document.getElementById('vehicleDetailsModal');
+                if (!modal) {
+                    console.error('Модальное окно не найдено');
+                    alert('Ошибка: модальное окно не найдено');
+                    return;
+                }
+
+                // Находим контент модального окна
+                const modalContent = modal.querySelector('.modal-content');
+                if (!modalContent) {
+                    console.error('Контент модального окна не найден');
+                    alert('Ошибка: контент модального окна не найден');
+                    return;
+                }
+
+                // Формируем HTML для модального окна
+                modalContent.innerHTML = `
+                    <span class="close" onclick="closeModal()">&times;</span>
+                    <h2>Детали автомобиля: ${vehicle.name}</h2>
+                    <div class="vehicle-info">
+                        <table>
+                            <tr>
+                                <th>Параметр</th>
+                                <th>Значение</th>
+                            </tr>
+                            <tr>
+                                <td>Расход топлива (л/100км)</td>
+                                <td>${vehicle.fuelConsumption}</td>
+                            </tr>
+                            <tr>
+                                <td>Расход на холостом ходу (л/час)</td>
+                                <td>${vehicle.idleConsumption}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <h3>История расчетов</h3>
+                    <div class="calculations-table">
+                        <table>
+                            <tr>
+                                <th>Дата</th>
+                                <th>Расстояние (км)</th>
+                                <th>Время на холостом ходу (ч)</th>
+                                <th>Расход на движение (л)</th>
+                                <th>Расход на холостом ходу (л)</th>
+                                <th>Общий расход (л)</th>
+                            </tr>
+                            ${calculations.map(calc => `
+                                <tr>
+                                    <td>${new Date(calc.timestamp).toLocaleString()}</td>
+                                    <td>${calc.distance.toFixed(2)}</td>
+                                    <td>${calc.idle_hours.toFixed(2)}</td>
+                                    <td>${calc.distance_consumption.toFixed(2)}</td>
+                                    <td>${calc.engine_consumption.toFixed(2)}</td>
+                                    <td>${calc.total_consumption.toFixed(2)}</td>
+                                </tr>
+                            `).join('')}
+                        </table>
+                    </div>
+                `;
+
+                // Показываем модальное окно
+                modal.style.display = 'block';
+            } catch (error) {
+                console.error('Ошибка при загрузке деталей автомобиля:', error);
+                alert('Не удалось загрузить детали автомобиля');
             }
         }
     </script>
 </body>
-<!-- Модальное окно для деталей автомобиля -->
-<div id="vehicleDetailsModal" class="vehicle-details-modal">
-    <div id="vehicleDetailsContent" class="vehicle-details-modal-content">
-        <!-- Содержимое будет добавлено динамически -->
-    </div>
-</div>
 </html>
