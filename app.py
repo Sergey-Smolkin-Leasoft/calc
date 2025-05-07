@@ -227,25 +227,28 @@ def get_vehicle_summary():
     try:
         calculations = Calculation.query.join(Vehicle).all()
         
-        # Группируем по автомобилям
         summary = {}
         for calc in calculations:
-            if calc.vehicle.name not in summary:
-                summary[calc.vehicle.name] = {
-                    'vehicle': calc.vehicle.name,
+            vehicle_name = calc.vehicle.name
+            vehicle_id = calc.vehicle.id # Get the vehicle's actual ID
+
+            if vehicle_name not in summary:
+                summary[vehicle_name] = {
+                    'id': vehicle_id,  # <-- **** MODIFIED: Add the vehicle ID here ****
+                    'vehicle': vehicle_name,
                     'total_distance': 0,
                     'total_idle_hours': 0,
                     'total_fuel': 0,
                     'trips': 0
                 }
             
-            summary[calc.vehicle.name]['total_distance'] += calc.distance
-            summary[calc.vehicle.name]['total_idle_hours'] += calc.idle_hours
-            summary[calc.vehicle.name]['total_fuel'] += calc.result
-            summary[calc.vehicle.name]['trips'] += 1
+            summary[vehicle_name]['total_distance'] += calc.distance
+            summary[vehicle_name]['total_idle_hours'] += calc.idle_hours
+            summary[vehicle_name]['total_fuel'] += calc.result
+            summary[vehicle_name]['trips'] += 1
         
         # Добавляем средний расход
-        for vehicle, data in summary.items():
+        for vehicle_name, data in summary.items(): # Changed 'vehicle' to 'vehicle_name' for clarity
             if data['total_distance'] > 0:
                 data['average_consumption'] = (data['total_fuel'] / data['total_distance']) * 100
             else:
@@ -253,8 +256,9 @@ def get_vehicle_summary():
         
         return jsonify(list(summary.values()))
     except Exception as e:
-        print(f"Error in get_vehicle_summary: {str(e)}")
+        print(f"Error in get_vehicle_summary: {str(e)}") # Log the error
         return jsonify({'error': 'Internal server error'}), 500
+
 
 @app.route('/api/db-viewer', methods=['GET'])
 def db_viewer():
