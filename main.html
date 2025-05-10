@@ -405,6 +405,20 @@
 </head>
 <body>
     <div class="calculator">
+        
+        <button id="toggleServerInstructionsButton" onclick="toggleServerInstructions()" style="display: block; margin: 10px auto; padding: 10px 20px;">
+            Показать инструкцию по запуску сервера
+        </button>
+        <div id="serverInstructionsBlock" style="display: none; margin-top: 15px; padding: 15px; border: 1px solid #ced4da; background-color: #f8f9fa; border-radius: 4px;">
+    
+            <p><strong>Шаги для запуска сервера:</strong></p>
+            <ol>
+                <li>В поиске набрать "cmd" и нажать Enter</li>
+                <li>вставить cd C:\Users\maryna.smolkyna@ugv.com.ua\Расчета <code></code> </li>
+                <li>Выполните команду: <br> <code>python app.py.txt</code></li>
+            </ol>
+        </div>
+
         <h1>Калькулятор расхода топлива</h1>
         
         <div class="db-viewer">
@@ -641,7 +655,28 @@
             console.log(`Alert (${type}): ${message}`); // Log alert for debugging
             alert(message); // Keep simple alert for now
         }
+        function toggleServerInstructions() {
+            const instructionsBlock = document.getElementById('serverInstructionsBlock');
+            const button = document.getElementById('toggleServerInstructionsButton');
 
+            if (!instructionsBlock || !button) {
+                console.error("Не найден блок инструкции или кнопка.");
+                return;
+            }
+
+            // Проверяем текущее состояние отображения
+            const isHidden = instructionsBlock.style.display === 'none' || instructionsBlock.style.display === '';
+
+            if (isHidden) {
+                // Если скрыто, показываем и меняем текст кнопки на "Скрыть"
+                instructionsBlock.style.display = 'block';
+                button.textContent = 'Скрыть инструкцию по запуску сервера';
+            } else {
+                // Если показано, скрываем и меняем текст кнопки на "Показать"
+                instructionsBlock.style.display = 'none';
+                button.textContent = 'Показать инструкцию по запуску сервера';
+            }
+        }
         async function fetchData(url, options = {}) {
             let response; 
             try {
@@ -1116,6 +1151,8 @@
                 console.log(`toggleDbTable: Hiding ${sectionId}.`);
             }
         }
+
+        
 
         async function updateDbViewer() {
             const vehiclesSectionVisible = document.getElementById('vehiclesTableSection').style.display === 'block';
